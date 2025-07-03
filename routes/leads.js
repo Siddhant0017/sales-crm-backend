@@ -2,22 +2,12 @@ const express = require('express');
 const router = express.Router();
 const leadController = require('../controllers/leadController');
 const multer = require('multer');
-const path = require('path');
 
-// Multer setup
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../uploads'));
-  },
-  filename: (req, file, cb) => {
-    cb(null, `CSV${Date.now()}${path.extname(file.originalname)}`);
-  }
-});
-
+// Use in-memory storage instead of disk
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'text/csv') {
+    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
       cb(null, true);
     } else {
       cb(new Error('Only CSV files are allowed'));
@@ -39,8 +29,6 @@ router.put('/:id', leadController.updateLead);
 router.delete('/:id', leadController.deleteLead);
 router.post('/bulk-assign', leadController.bulkAssignLeads);
 router.post('/distribute-unassigned', leadController.distributeUnassignedLeads);
-
-// Status update route - this should be a specific path, not a parameter route
 router.put('/status/:id', leadController.updateLeadStatus);
 
 module.exports = router;

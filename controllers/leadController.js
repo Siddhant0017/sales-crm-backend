@@ -80,7 +80,8 @@ exports.uploadCSV = async (req, res) => {
     let unassignedCount = 0;
 
     await new Promise((resolve, reject) => {
-      fs.createReadStream(req.file.path)
+      const stream = Readable.from(req.file.buffer.toString());
+      stream
         .pipe(csv({
           mapHeaders: ({ header }) => header.toLowerCase().replace(/\s+/g, '')
         }))
@@ -117,7 +118,6 @@ exports.uploadCSV = async (req, res) => {
     }
 
     const savedLeads = await Lead.insertMany(results);
-
     const employees = await Employee.find({ status: 'active' });
 
     if (employees.length === 0) {
@@ -127,7 +127,6 @@ exports.uploadCSV = async (req, res) => {
     for (const lead of savedLeads) {
       let assigned = false;
 
-      //Direct assignment based on CSV name
       if (lead.assignedEmployeeName) {
         const nameParts = lead.assignedEmployeeName.trim().split(' ');
         const firstName = nameParts[0];
@@ -144,7 +143,6 @@ exports.uploadCSV = async (req, res) => {
             assignedEmployee: employee._id,
             assignedDate: new Date()
           });
-
           assignedCount++;
           assigned = true;
         } else {
@@ -154,7 +152,6 @@ exports.uploadCSV = async (req, res) => {
         unassignedCount++;
       }
 
-      //Auto distribution regardless
       if (!assigned) {
         let matchingEmployees = employees.filter(emp =>
           lead.language.some(l => emp.language.includes(l)) &&
@@ -191,17 +188,13 @@ exports.uploadCSV = async (req, res) => {
       unassignedLeads: unassignedCount
     });
 
-    fs.unlinkSync(req.file.path);
-
     res.status(201).json({
       success: true,
       message: `Uploaded ${savedLeads.length} leads. Assigned: ${assignedCount}, Unassigned: ${unassignedCount}`
     });
 
   } catch (error) {
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
+    console.error('CSV Upload Error:', error.message);
     res.status(500).json({ error: error.message });
   }
 };
