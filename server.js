@@ -12,7 +12,8 @@ connectDB();
 
 const app = express();
 
-// Middleware
+
+
 app.use(cors({
   origin: [
     'http://localhost:3000',
@@ -21,10 +22,16 @@ app.use(cors({
     'https://salescrm-employee.netlify.app'
   ],
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
-
-
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Server is running' });
+});
 
 // Routes
 app.use('/api/leads', require('./routes/leads'));
@@ -36,23 +43,20 @@ app.use('/api/employee', require('./routes/employeeLogin'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 
-
-// Serve static assets in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static('admin-frontend/build'));
-  app.use('/employee', express.static('user-frontend/build'));
-
-  app.get('/admin*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, '../admin-frontend', 'build', 'index.html'));
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ 
+    message: 'Something went wrong!', 
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Server error' 
   });
+});
 
-  app.get('/employee*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, '../user-frontend', 'build', 'index.html'));
-  });
-}
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Employee break handling code
 const Employee = require('./models/Employee');
 const Attendance = require('./models/Attendance');
 
